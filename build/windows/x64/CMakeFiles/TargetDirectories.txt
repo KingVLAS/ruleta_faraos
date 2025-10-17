@@ -1,0 +1,16 @@
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/CMakeFiles/INSTALL.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/CMakeFiles/ALL_BUILD.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/CMakeFiles/ZERO_CHECK.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/flutter/CMakeFiles/flutter_wrapper_plugin.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/flutter/CMakeFiles/flutter_wrapper_app.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/flutter/CMakeFiles/flutter_assemble.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/flutter/CMakeFiles/INSTALL.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/runner/CMakeFiles/faraos_ruleta.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/runner/CMakeFiles/INSTALL.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/runner/CMakeFiles/ALL_BUILD.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/plugins/file_selector_windows/CMakeFiles/file_selector_windows_plugin.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/plugins/file_selector_windows/CMakeFiles/INSTALL.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/plugins/file_selector_windows/CMakeFiles/ALL_BUILD.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/plugins/url_launcher_windows/CMakeFiles/url_launcher_windows_plugin.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/plugins/url_launcher_windows/CMakeFiles/INSTALL.dir
+C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/plugins/url_launcher_windows/CMakeFiles/ALL_BUILD.dir
