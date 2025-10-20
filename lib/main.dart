@@ -2,7 +2,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:confetti/confetti.dart';
 import 'package:file_selector/file_selector.dart';
@@ -304,6 +303,20 @@ class _RuletaScreenState extends State<RuletaScreen>
     });
   }
 
+  // ➕ Nuevo: girar otra vez (para "1 oportunidad más")
+  void _spinAgain() {
+    if (_girando) return;
+    HapticFeedback.lightImpact();
+    final elegido = _seleccionPonderada(probs);
+    setState(() {
+      _girando = true;
+      _selectedIndex = elegido;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _selectedCtrl.add(elegido);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isFullWheel = _step == 2;
@@ -502,9 +515,10 @@ class _RuletaScreenState extends State<RuletaScreen>
         if (_selectedIndex == null) return;
 
         final premio = premios[_selectedIndex!];
-        final gano = premio != 'Sigue participando';
+        final isExtra = premio == '1 oportunidad más';
+        final wonPrize = !isExtra && premio != 'Sigue participando';
 
-        if (gano) {
+        if (wonPrize) {
           HapticFeedback.heavyImpact();
           _confetti.play();
         } else {
@@ -516,8 +530,25 @@ class _RuletaScreenState extends State<RuletaScreen>
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (ctx) => const _ResultDialog(),
-        ).then((_) {
+          builder: (ctx) => _ResultDialog(
+            nombre: _nombreCtrl.text.trim(),
+            premio: premio,
+            isExtraChance: isExtra,
+            wonPrize: wonPrize,
+          ),
+        ).then((res) {
+          if (res == _ResultDialog.spinAgainKey) {
+            // volver a girar sin salir de la ruleta
+            _spinAgain();
+            return;
+          }
+          // Al ganar premio real → volver a "Seguir red"
+          if (wonPrize) {
+            setState(() => _step = 0);
+            _resetFormulario();
+            return;
+          }
+          // "Sigue participando" → vuelve al formulario (como antes)
           setState(() => _step = 1);
           _resetFormulario();
         });
@@ -627,12 +658,14 @@ class _PasoSeguirRedState extends State<_PasoSeguirRed> {
 
         LayoutBuilder(
           builder: (context, cons) {
-            const gap = 12.0;
+            const gap = 16.0; // Aumentado el gap para más espacio entre QRs
             final totalW = cons.maxWidth;
-            double cardW = (totalW - (gap * 2)) / 3;
-            cardW = cardW.clamp(160.0, 260.0);
+            double cardW = (totalW - gap) / 2; // Ahora solo 2 tarjetas
+            cardW = cardW.clamp(180.0, 280.0); // Aumentado el tamaño máximo
 
             return Row(
+              mainAxisAlignment:
+                  MainAxisAlignment.center, // Centrar las tarjetas
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
@@ -644,20 +677,6 @@ class _PasoSeguirRedState extends State<_PasoSeguirRed> {
                       url: 'https://www.instagram.com/faroschile/',
                       color: Colors.pinkAccent,
                       icon: FontAwesomeIcons.instagram,
-                      compact: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: gap),
-                SizedBox(
-                  width: cardW,
-                  child: const AspectRatio(
-                    aspectRatio: 1,
-                    child: _QRCard(
-                      title: 'Facebook · Faros Asesores Chile',
-                      url: 'https://www.facebook.com/FarosAsesoresChile/',
-                      color: Colors.blue,
-                      icon: FontAwesomeIcons.facebook,
                       compact: true,
                     ),
                   ),
@@ -702,7 +721,7 @@ class _PasoSeguirRedState extends State<_PasoSeguirRed> {
     );
   }
 
-  /// DERECHA: Ruleta demo un poco más arriba
+  /// DERECHA: Ruleta demo un poco más arriba (FONDO BLANCO)
   Widget _rightPreview(double maxW, double maxH) {
     final side = (min(maxW, maxH) * 0.84).clamp(320.0, 560.0);
     return Align(
@@ -715,11 +734,7 @@ class _PasoSeguirRedState extends State<_PasoSeguirRed> {
             width: side,
             height: side,
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.white, AppTheme.surfaceSoft],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: Colors.white, // ← fondo de la ruleta (preview) BLANCO
             ),
             child: Stack(
               children: [
@@ -1088,7 +1103,7 @@ class _ConfigProb extends StatelessWidget {
   }
 }
 
-/// ===== RULETA – full screen + paneles laterales con logo centrado + QRs + frases con emojis =====
+/// ===== RULETA – full screen + paneles laterales =====
 class _PasoRuleta extends StatelessWidget {
   final Stream<int> selectedStream;
   final bool isSpinning;
@@ -1112,95 +1127,101 @@ class _PasoRuleta extends StatelessWidget {
 
         // espacio libre a los lados del cuadrado central
         final sideSpace = (w - size) / 2;
-        final showPromos = sideSpace >= 300; // mostrar si hay buen margen
+        final showPromos = sideSpace >= 120; // mostrar si hay buen margen
 
         return Stack(
           children: [
-            // PROMO APASEP (izquierda)
+            // PROMO APASEP (izquierda) — centrado y usando todo el espacio lateral disponible con margen
             if (showPromos)
               Align(
                 alignment: Alignment.centerLeft,
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 12),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: min(340, sideSpace - 16),
-                    ),
-                    child: _PromoPanelAd(
-                      logoAsset: 'assets/logo_apasep.png',
-                      title: 'APASEP',
-                      subtitle: '2025 · Santiago de Chile 🇨🇱',
-                      accent: AppTheme.primary,
-                      bullets: const [
-                        'Automatiza · Optimiza · Avanza 🚀',
-                        'Partner tecnológico 🤝',
-                        'IA + Apps + Web ⚙️🤖',
-                      ],
-                      qrs: const [
-                        _PromoQr(
-                          label: '🌐 apasep.cl',
-                          url: 'https://www.apasep.cl',
-                          color: AppTheme.primary,
-                          icon: FontAwesomeIcons.globe,
+                  padding: const EdgeInsets.only(left: 16),
+                  child: SizedBox(
+                    width: (sideSpace - 28).clamp(160.0, double.infinity),
+                    child: Center(
+                      child: SizedBox(
+                        width: (sideSpace - 28).clamp(160.0, double.infinity),
+                        child: _PromoPanelAd(
+                          logoAsset: 'assets/logo_apasep.png',
+                          title: 'APASEP',
+                          subtitle: '2025 · Santiago de Chile 🇨🇱',
+                          accent: AppTheme.primary,
+                          bullets: const [
+                            'Automatiza · Optimiza · Avanza 🚀',
+                            'Partner tecnológico 🤝',
+                            'IA + Apps + Web ⚙️🤖',
+                          ],
+                          qrs: const [
+                            _PromoQr(
+                              label: '🌐 apasep.cl',
+                              url: 'https://www.apasep.cl',
+                              color: AppTheme.primary,
+                              icon: FontAwesomeIcons.globe,
+                            ),
+                            _PromoQr(
+                              label: 'IG @apasep.cl',
+                              url: 'https://www.instagram.com/apasep',
+                              color: Colors.pinkAccent,
+                              icon: FontAwesomeIcons.instagram,
+                            ),
+                          ],
+                          footnote:
+                              'APASEP 2025 · Santiago de Chile · © Todos los derechos reservados\n'
+                              'DISEÑO POR APASEP | IG @apasep.cl',
                         ),
-                        _PromoQr(
-                          label: 'IG @apasep.cl',
-                          url: 'https://www.instagram.com/apasep',
-                          color: Colors.pinkAccent,
-                          icon: FontAwesomeIcons.instagram,
-                        ),
-                      ],
-                      footnote:
-                          'APASEP 2025 · Santiago de Chile · © Todos los derechos reservados\n'
-                          'DISEÑO POR APASEP | IG @apasep.cl',
+                      ),
                     ),
                   ),
                 ),
               ),
 
-            // PROMO FAROS (derecha)
+            // PROMO FAROS (derecha) — centrado y usando todo el espacio lateral disponible con margen
             if (showPromos)
               Align(
                 alignment: Alignment.centerRight,
                 child: Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: min(340, sideSpace - 16),
-                    ),
-                    child: _PromoPanelAd(
-                      logoAsset: 'assets/logo_faros.png',
-                      title: 'FAROS',
-                      subtitle: 'Consultoría TI & Logística 📦',
-                      accent: AppTheme.tertiary,
-                      bullets: const [
-                        'Minería ⛏️ · Retail 🛍️',
-                        'ERP de clase mundial 🧠',
-                        'KPI & Cadena de Abastecimiento 📊',
-                        'Picking · Sorting · Despacho 🚚',
-                      ],
-                      qrs: const [
-                        _PromoQr(
-                          label: 'IG @faroschile',
-                          url: 'https://www.instagram.com/faroschile/',
-                          color: Colors.pinkAccent,
-                          icon: FontAwesomeIcons.instagram,
+                  padding: const EdgeInsets.only(right: 16),
+                  child: SizedBox(
+                    width: (sideSpace - 28).clamp(160.0, double.infinity),
+                    child: Center(
+                      child: SizedBox(
+                        width: (sideSpace - 28).clamp(160.0, double.infinity),
+                        child: _PromoPanelAd(
+                          logoAsset: 'assets/logo_faros.png',
+                          title: 'FAROS',
+                          subtitle: 'Consultoría TI & Logística 📦',
+                          accent: AppTheme.tertiary,
+                          bullets: const [
+                            'Minería ⛏️ · Retail 🛍️',
+                            'ERP de clase mundial 🧠',
+                            'KPI & Cadena de Abastecimiento 📊',
+                            'Picking · Sorting · Despacho 🚚',
+                          ],
+                          qrs: const [
+                            _PromoQr(
+                              label: 'IG @faroschile',
+                              url: 'https://www.instagram.com/faroschile/',
+                              color: Colors.pinkAccent,
+                              icon: FontAwesomeIcons.instagram,
+                            ),
+                            _PromoQr(
+                              label: 'LinkedIn',
+                              url:
+                                  'https://www.linkedin.com/company/faroschile/?viewAsMember=true',
+                              color: Color(0xFF0A66C2),
+                              icon: FontAwesomeIcons.linkedin,
+                            ),
+                          ],
+                          footnote: 'Iluminando decisiones ✨',
                         ),
-                        _PromoQr(
-                          label: 'LinkedIn',
-                          url:
-                              'https://www.linkedin.com/company/faroschile/?viewAsMember=true',
-                          color: Color(0xFF0A66C2),
-                          icon: FontAwesomeIcons.linkedin,
-                        ),
-                      ],
-                      footnote: 'Iluminando decisiones ✨',
+                      ),
                     ),
                   ),
                 ),
               ),
 
-            // RULETA central
+            // RULETA central — FONDO BLANCO
             Center(
               child: AnimatedScale(
                 duration: const Duration(milliseconds: 380),
@@ -1212,11 +1233,7 @@ class _PasoRuleta extends StatelessWidget {
                     width: size,
                     height: size,
                     decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.white, AppTheme.surfaceSoft],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      color: Colors.white, // ← fondo de la ruleta BLANCO
                     ),
                     child: Stack(
                       children: [
@@ -1576,9 +1593,18 @@ class _GlowHaloState extends State<_GlowHalo>
   }
 }
 
-/// FOOTER APASEP
+/// FOOTER APASEP — versión con texto negro en negrita
 class _ApasepFooter extends StatelessWidget {
   const _ApasepFooter();
+
+  TextStyle get _baseStyle => const TextStyle(
+    fontSize: 13,
+    height: 1.2,
+    letterSpacing: .4,
+    fontWeight: FontWeight.bold,
+  );
+
+  Color get _textBlack => Colors.black;
 
   @override
   Widget build(BuildContext context) {
@@ -1595,57 +1621,149 @@ class _ApasepFooter extends StatelessWidget {
         top: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 16,
-            runSpacing: 8,
-            children: [
-              Container(
-                height: 34,
-                width: 34,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .08),
-                      blurRadius: 10,
-                      offset: const Offset(0, 6),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isTight = constraints.maxWidth < 700;
+
+              return Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 14,
+                runSpacing: 10,
+                children: [
+                  // Logo
+                  Container(
+                    height: 60,
+                    width: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: .08),
+                          blurRadius: 10,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Image.asset(
-                  'assets/logo_apasep.png',
-                  fit: BoxFit.contain,
-                ),
-              ),
-              const Text(
-                'DISEÑO POR APASEP',
-                style: TextStyle(fontSize: 16, letterSpacing: .5),
-              ),
-              _FooterLink(
-                icon: FontAwesomeIcons.globe,
-                label: 'WWW.APASEP.CL',
-                color: AppTheme.primary,
-                onTap: () => launchUrl(
-                  Uri.parse('https://www.apasep.cl'),
-                  mode: LaunchMode.externalApplication,
-                ),
-              ),
-              _FooterLink(
-                icon: FontAwesomeIcons.instagram,
-                label: '@APASEP',
-                color: Colors.pinkAccent,
-                onTap: () => launchUrl(
-                  Uri.parse('https://www.instagram.com/apasep'),
-                  mode: LaunchMode.externalApplication,
-                ),
-              ),
-            ],
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.asset(
+                      'assets/logo_apasep.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+
+                  // Bloque institucional
+                  _PillText(
+                    icon: FontAwesomeIcons.copyright,
+                    text: 'APASEP 2025',
+                    color: _textBlack,
+                    style: _baseStyle,
+                  ),
+                  const _Pipe(),
+                  Text(
+                    'Todos los derechos reservados',
+                    style: _baseStyle.copyWith(color: _textBlack),
+                  ),
+                  const _Pipe(),
+                  _PillText(
+                    icon: FontAwesomeIcons.locationDot,
+                    text: 'Santiago de Chile',
+                    color: _textBlack,
+                    style: _baseStyle,
+                  ),
+
+                  if (!isTight) const _Pipe(big: true),
+
+                  // “Diseñado por APASEP”
+                  _FooterLink(
+                    icon: FontAwesomeIcons.palette,
+                    label: 'DISEÑADO POR APASEP',
+                    color: const Color.fromARGB(255, 216, 219, 0),
+                    onTap: () => launchUrl(
+                      Uri.parse('https://www.apasep.cl'),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
+
+                  const _Pipe(),
+
+                  // Instagram
+                  _FooterLink(
+                    icon: FontAwesomeIcons.instagram,
+                    label: '@APASEP.CL',
+                    color: Colors.pinkAccent,
+                    onTap: () => launchUrl(
+                      Uri.parse('https://www.instagram.com/apasep'),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
+
+                  const _Pipe(),
+
+                  // Web corporativa
+                  _FooterLink(
+                    icon: FontAwesomeIcons.globe,
+                    label: 'WWW.APASEP.CL',
+                    color: AppTheme.primary,
+                    onTap: () => launchUrl(
+                      Uri.parse('https://www.apasep.cl'),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Separador visual “|” con opacidad sutil
+class _Pipe extends StatelessWidget {
+  final bool big;
+  const _Pipe({this.big = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(.22) ??
+        const Color(0xFF5A6473).withOpacity(.22);
+    return Text(
+      '|',
+      style: TextStyle(
+        fontSize: big ? 16 : 14,
+        fontWeight: FontWeight.w600,
+        color: color,
+      ),
+    );
+  }
+}
+
+/// Ítem compacto con icono + texto para mensajes institucionales
+class _PillText extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color color;
+  final TextStyle style;
+
+  const _PillText({
+    required this.icon,
+    required this.text,
+    required this.color,
+    required this.style,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      children: [
+        Icon(icon, size: 14, color: color),
+        Text(text, style: style.copyWith(color: color)),
+      ],
     );
   }
 }
@@ -1828,9 +1946,22 @@ class _PointerIndicator extends StatelessWidget {
   }
 }
 
-/// ===== RESULT DIALOG (fix: controller en initState para evitar crash) =====
+/// ===== RESULT DIALOG con “Girar de nuevo” cuando es “1 oportunidad más” =====
 class _ResultDialog extends StatefulWidget {
-  const _ResultDialog();
+  static const String spinAgainKey = '_spinAgain';
+
+  final String nombre;
+  final String premio;
+  final bool isExtraChance; // "1 oportunidad más"
+  final bool
+  wonPrize; // ganó premio real (no extra chance ni sigue participando)
+
+  const _ResultDialog({
+    required this.nombre,
+    required this.premio,
+    required this.isExtraChance,
+    required this.wonPrize,
+  });
 
   @override
   State<_ResultDialog> createState() => _ResultDialogState();
@@ -1857,6 +1988,12 @@ class _ResultDialogState extends State<_ResultDialog>
 
   @override
   Widget build(BuildContext context) {
+    final titulo = widget.wonPrize
+        ? 'Felicidades ${widget.nombre},\nte ganaste un/a\n'
+        : (widget.isExtraChance
+              ? '¡Genial ${widget.nombre}!\nObtuviste: '
+              : 'Suerte para la próxima ${widget.nombre},\n¡Gracias por visitarnos!');
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: .9, end: 1),
       duration: const Duration(milliseconds: 250),
@@ -1873,11 +2010,34 @@ class _ResultDialogState extends State<_ResultDialog>
           left: 12,
           top: 6,
         ),
-        title: const Center(
-          child: Text(
-            '¡Gracias por participar!',
-            style: TextStyle(fontSize: 22, letterSpacing: .4),
-          ),
+        title: Center(
+          child: widget.wonPrize
+              ? RichText(
+                  textAlign: TextAlign.center,
+                  text: TextSpan(
+                    style: Theme.of(
+                      context,
+                    ).textTheme.headlineSmall?.copyWith(letterSpacing: .4),
+                    children: [
+                      TextSpan(text: titulo),
+                      TextSpan(
+                        text: widget.premio,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 26,
+                        ),
+                      ),
+                      const TextSpan(text: '\n¡Gracias por Visitarnos!'),
+                    ],
+                  ),
+                )
+              : Text(
+                  widget.isExtraChance
+                      ? '$titulo${widget.premio}'
+                      : 'Suerte para la próxima ${widget.nombre},\n¡Gracias por visitarnos!',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 22, letterSpacing: .4),
+                ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1919,10 +2079,17 @@ class _ResultDialogState extends State<_ResultDialog>
           ],
         ),
         actions: [
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Aceptar'),
-          ),
+          if (widget.isExtraChance)
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(_ResultDialog.spinAgainKey),
+              child: const Text('Girar de nuevo'),
+            )
+          else
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Aceptar'),
+            ),
         ],
       ),
     );

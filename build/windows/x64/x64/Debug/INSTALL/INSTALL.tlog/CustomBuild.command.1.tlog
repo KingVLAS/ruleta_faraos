@@ -1,0 +1,10 @@
+^C:\PROYECTOSFLUTTER\APP_RULETA\FARAOS_RULETA\BUILD\WINDOWS\X64\CMAKEFILES\A4486186D122282039AEBB315D41A430\INSTALL_FORCE.RULE
+setlocal
+cd .
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

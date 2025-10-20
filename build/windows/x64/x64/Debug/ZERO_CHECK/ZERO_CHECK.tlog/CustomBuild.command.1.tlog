@@ -1,0 +1,10 @@
+^C:\PROYECTOSFLUTTER\APP_RULETA\FARAOS_RULETA\BUILD\WINDOWS\X64\CMAKEFILES\A4486186D122282039AEBB315D41A430\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/ProyectosFlutter/app_ruleta/faraos_ruleta/windows -BC:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64 --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/ProyectosFlutter/app_ruleta/faraos_ruleta/build/windows/x64/faraos_ruleta.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
